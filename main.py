@@ -7,6 +7,94 @@ import json
 # Initialize Firebase Admin
 initialize_app()
 
+# Common CORS headers
+CORS_HEADERS = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type',
+}
+
+def handle_cors_preflight(req: https_fn.Request) -> https_fn.Response:
+    """Handle CORS preflight OPTIONS request."""
+    if req.method == 'OPTIONS':
+        return https_fn.Response('', status=204, headers=CORS_HEADERS)
+    return None
+
+def validate_request_method(req: https_fn.Request) -> https_fn.Response:
+    """Validate that request is POST method."""
+    if req.method != 'POST':
+        return https_fn.Response(
+            json.dumps({'error': 'Method not allowed'}),
+            status=405,
+            headers=CORS_HEADERS
+        )
+    return None
+
+def parse_and_validate_birth_data(req: https_fn.Request) -> tuple:
+    """
+    Parse and validate birth data from request.
+    Returns: (date, time, latitude, longitude, timezone_offset, error_response)
+    """
+    data = req.get_json()
+    
+    if not data:
+        return None, None, None, None, None, https_fn.Response(
+            json.dumps({'error': 'No JSON data provided'}),
+            status=400,
+            headers=CORS_HEADERS
+        )
+    
+    # Validate required fields
+    required_fields = ['date', 'time', 'latitude', 'longitude']
+    for field in required_fields:
+        if field not in data:
+            return None, None, None, None, None, https_fn.Response(
+                json.dumps({'error': f'Missing required field: {field}'}),
+                status=400,
+                headers=CORS_HEADERS
+            )
+    
+    try:
+        # Extract and validate data
+        date = tuple(data['date'])
+        time = tuple(data['time'])
+        latitude = float(data['latitude'])
+        longitude = float(data['longitude'])
+        timezone_offset = float(data.get('timezone_offset_hours', 0.0))
+        
+        # Validate date and time format
+        if len(date) != 3 or len(time) != 3:
+            return None, None, None, None, None, https_fn.Response(
+                json.dumps({'error': 'Date and time must be arrays of 3 elements [year, month, day] and [hour, minute, second]'}),
+                status=400,
+                headers=CORS_HEADERS
+            )
+        
+        return date, time, latitude, longitude, timezone_offset, None
+        
+    except ValueError as e:
+        return None, None, None, None, None, https_fn.Response(
+            json.dumps({'error': f'Invalid data format: {str(e)}'}),
+            status=400,
+            headers=CORS_HEADERS
+        )
+
+def create_error_response(error_message: str, status: int = 500) -> https_fn.Response:
+    """Create standardized error response."""
+    return https_fn.Response(
+        json.dumps({'error': error_message}),
+        status=status,
+        headers=CORS_HEADERS
+    )
+
+def create_success_response(data: dict) -> https_fn.Response:
+    """Create standardized success response."""
+    return https_fn.Response(
+        json.dumps(data, indent=2),
+        status=200,
+        headers=CORS_HEADERS
+    )
+
 # Zodiac signs in Italian (keeping original names as they're astrological terms)
 ZODIAC_SIGNS = [
     "Ariete", "Toro", "Gemelli", "Cancro", "Leone", "Vergine",
@@ -181,60 +269,21 @@ def calculate_horoscope(req: https_fn.Request) -> https_fn.Response:
         "timezone_offset_hours": float (optional, defaults to 0)
     }
     """
-    # Set CORS headers
-    headers = {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'POST, OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type',
-    }
+    # Handle CORS preflight
+    cors_response = handle_cors_preflight(req)
+    if cors_response:
+        return cors_response
     
-    # Handle preflight OPTIONS request
-    if req.method == 'OPTIONS':
-        return https_fn.Response('', status=204, headers=headers)
-    
-    # Only allow POST requests
-    if req.method != 'POST':
-        return https_fn.Response(
-            json.dumps({'error': 'Method not allowed'}),
-            status=405,
-            headers=headers
-        )
+    # Validate request method
+    method_response = validate_request_method(req)
+    if method_response:
+        return method_response
     
     try:
-        # Parse request data
-        data = req.get_json()
-        
-        if not data:
-            return https_fn.Response(
-                json.dumps({'error': 'No JSON data provided'}),
-                status=400,
-                headers=headers
-            )
-        
-        # Validate required fields
-        required_fields = ['date', 'time', 'latitude', 'longitude']
-        for field in required_fields:
-            if field not in data:
-                return https_fn.Response(
-                    json.dumps({'error': f'Missing required field: {field}'}),
-                    status=400,
-                    headers=headers
-                )
-        
-        # Extract and validate data
-        date = tuple(data['date'])
-        time = tuple(data['time'])
-        latitude = float(data['latitude'])
-        longitude = float(data['longitude'])
-        timezone_offset = float(data.get('timezone_offset_hours', 0.0))
-        
-        # Validate date and time format
-        if len(date) != 3 or len(time) != 3:
-            return https_fn.Response(
-                json.dumps({'error': 'Date and time must be arrays of 3 elements [year, month, day] and [hour, minute, second]'}),
-                status=400,
-                headers=headers
-            )
+        # Parse and validate birth data
+        date, time, latitude, longitude, timezone_offset, error_response = parse_and_validate_birth_data(req)
+        if error_response:
+            return error_response
         
         # Calculate positions
         positions = calculate_positions(
@@ -280,24 +329,10 @@ def calculate_horoscope(req: https_fn.Request) -> https_fn.Response:
             }
         }
         
-        return https_fn.Response(
-            json.dumps(response_data, indent=2),
-            status=200,
-            headers=headers
-        )
+        return create_success_response(response_data)
         
-    except ValueError as e:
-        return https_fn.Response(
-            json.dumps({'error': f'Invalid data format: {str(e)}'}),
-            status=400,
-            headers=headers
-        )
     except Exception as e:
-        return https_fn.Response(
-            json.dumps({'error': f'Internal server error: {str(e)}'}),
-            status=500,
-            headers=headers
-        )
+        return create_error_response(f'Internal server error: {str(e)}')
 
 @https_fn.on_request()
 def calculate_aspects(req: https_fn.Request) -> https_fn.Response:
@@ -314,61 +349,25 @@ def calculate_aspects(req: https_fn.Request) -> https_fn.Response:
         "orb": float (optional, defaults to 6)
     }
     """
-    # Set CORS headers
-    headers = {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'POST, OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type',
-    }
+    # Handle CORS preflight
+    cors_response = handle_cors_preflight(req)
+    if cors_response:
+        return cors_response
     
-    # Handle preflight OPTIONS request
-    if req.method == 'OPTIONS':
-        return https_fn.Response('', status=204, headers=headers)
-    
-    # Only allow POST requests
-    if req.method != 'POST':
-        return https_fn.Response(
-            json.dumps({'error': 'Method not allowed'}),
-            status=405,
-            headers=headers
-        )
+    # Validate request method
+    method_response = validate_request_method(req)
+    if method_response:
+        return method_response
     
     try:
-        # Parse request data
+        # Parse and validate birth data
+        date, time, latitude, longitude, timezone_offset, error_response = parse_and_validate_birth_data(req)
+        if error_response:
+            return error_response
+        
+        # Get orb parameter
         data = req.get_json()
-        
-        if not data:
-            return https_fn.Response(
-                json.dumps({'error': 'No JSON data provided'}),
-                status=400,
-                headers=headers
-            )
-        
-        # Validate required fields
-        required_fields = ['date', 'time', 'latitude', 'longitude']
-        for field in required_fields:
-            if field not in data:
-                return https_fn.Response(
-                    json.dumps({'error': f'Missing required field: {field}'}),
-                    status=400,
-                    headers=headers
-                )
-        
-        # Extract and validate data
-        date = tuple(data['date'])
-        time = tuple(data['time'])
-        latitude = float(data['latitude'])
-        longitude = float(data['longitude'])
-        timezone_offset = float(data.get('timezone_offset_hours', 0.0))
         orb = float(data.get('orb', 6.0))
-        
-        # Validate date and time format
-        if len(date) != 3 or len(time) != 3:
-            return https_fn.Response(
-                json.dumps({'error': 'Date and time must be arrays of 3 elements [year, month, day] and [hour, minute, second]'}),
-                status=400,
-                headers=headers
-            )
         
         # Calculate positions first
         positions = calculate_positions(
@@ -407,24 +406,11 @@ def calculate_aspects(req: https_fn.Request) -> https_fn.Response:
             }
         }
         
-        return https_fn.Response(
-            json.dumps(response_data, indent=2),
-            status=200,
-            headers=headers
-        )
+        return create_success_response(response_data)
         
-    except ValueError as e:
-        return https_fn.Response(
-            json.dumps({'error': f'Invalid data format: {str(e)}'}),
-            status=400,
-            headers=headers
-        )
     except Exception as e:
-        return https_fn.Response(
-            json.dumps({'error': f'Internal server error: {str(e)}'}),
-            status=500,
-            headers=headers
-        )
+        return create_error_response(f'Internal server error: {str(e)}')
+
 @https_fn.on_request()
 def moon_phase(req: https_fn.Request) -> https_fn.Response:
     """
@@ -439,60 +425,21 @@ def moon_phase(req: https_fn.Request) -> https_fn.Response:
         "timezone_offset_hours": float (optional, defaults to 0)
     }
     """
-    # Set CORS headers
-    headers = {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'POST, OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type',
-    }
+    # Handle CORS preflight
+    cors_response = handle_cors_preflight(req)
+    if cors_response:
+        return cors_response
     
-    # Handle preflight OPTIONS request
-    if req.method == 'OPTIONS':
-        return https_fn.Response('', status=204, headers=headers)
-    
-    # Only allow POST requests
-    if req.method != 'POST':
-        return https_fn.Response(
-            json.dumps({'error': 'Method not allowed'}),
-            status=405,
-            headers=headers
-        )
+    # Validate request method
+    method_response = validate_request_method(req)
+    if method_response:
+        return method_response
     
     try:
-        # Parse request data
-        data = req.get_json()
-        
-        if not data:
-            return https_fn.Response(
-                json.dumps({'error': 'No JSON data provided'}),
-                status=400,
-                headers=headers
-            )
-        
-        # Validate required fields
-        required_fields = ['date', 'time', 'latitude', 'longitude']
-        for field in required_fields:
-            if field not in data:
-                return https_fn.Response(
-                    json.dumps({'error': f'Missing required field: {field}'}),
-                    status=400,
-                    headers=headers
-                )
-        
-        # Extract and validate data
-        date = tuple(data['date'])
-        time = tuple(data['time'])
-        latitude = float(data['latitude'])
-        longitude = float(data['longitude'])
-        timezone_offset = float(data.get('timezone_offset_hours', 0.0))
-        
-        # Validate date and time format
-        if len(date) != 3 or len(time) != 3:
-            return https_fn.Response(
-                json.dumps({'error': 'Date and time must be arrays of 3 elements [year, month, day] and [hour, minute, second]'}),
-                status=400,
-                headers=headers
-            )
+        # Parse and validate birth data
+        date, time, latitude, longitude, timezone_offset, error_response = parse_and_validate_birth_data(req)
+        if error_response:
+            return error_response
         
         # Calculate positions first
         positions = calculate_positions(
@@ -544,21 +491,7 @@ def moon_phase(req: https_fn.Request) -> https_fn.Response:
             }
         }
         
-        return https_fn.Response(
-            json.dumps(response_data, indent=2),
-            status=200,
-            headers=headers
-        )
+        return create_success_response(response_data)
         
-    except ValueError as e:
-        return https_fn.Response(
-            json.dumps({'error': f'Invalid data format: {str(e)}'}),
-            status=400,
-            headers=headers
-        )
     except Exception as e:
-        return https_fn.Response(
-            json.dumps({'error': f'Internal server error: {str(e)}'}),
-            status=500,
-            headers=headers
-        )
+        return create_error_response(f'Internal server error: {str(e)}')
