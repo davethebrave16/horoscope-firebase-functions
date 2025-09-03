@@ -147,6 +147,26 @@ def calculate_planetary_aspects(positions: Dict[str, Tuple[str, int, float, floa
     
     return aspects_found
 
+def moon_ascending_descending(positions: Dict[str, Tuple[str, int, float, float]]) -> str:
+    """
+    Determine if the Moon is ascending or descending:
+    - Ascending -> Moon is in the eastern half (from house 1 to 6)
+    - Descending -> Moon is in the western half (from house 7 to 12)
+    Simplified: compare Moon longitude with Ascendant/Descendant.
+    """
+    moon_longitude = positions["Moon"][3]
+    ascendant_longitude = positions["Ascendant"][3]
+    descendant_longitude = positions["Descendant"][3]
+
+    # Normalize differences
+    diff_moon_asc = (moon_longitude - ascendant_longitude + 360) % 360
+    diff_dsc_asc = (descendant_longitude - ascendant_longitude + 360) % 360
+
+    if diff_moon_asc < diff_dsc_asc:
+        return "The Moon is in ascending phase (from Asc to Dsc)."
+    else:
+        return "The Moon is in descending phase (from Dsc to Asc)."
+
 @https_fn.on_request()
 def calculate_horoscope(req: https_fn.Request) -> https_fn.Response:
     """
@@ -368,6 +388,143 @@ def calculate_aspects(req: https_fn.Request) -> https_fn.Response:
             'aspects': aspects,
             'aspect_count': len(aspects),
             'orb_used': orb,
+            'birth_data': {
+                'date': {
+                    'year': date[0],
+                    'month': date[1],
+                    'day': date[2]
+                },
+                'time': {
+                    'hour': time[0],
+                    'minute': time[1],
+                    'second': time[2]
+                },
+                'location': {
+                    'latitude': latitude,
+                    'longitude': longitude,
+                    'timezone_offset_hours': timezone_offset
+                }
+            }
+        }
+        
+        return https_fn.Response(
+            json.dumps(response_data, indent=2),
+            status=200,
+            headers=headers
+        )
+        
+    except ValueError as e:
+        return https_fn.Response(
+            json.dumps({'error': f'Invalid data format: {str(e)}'}),
+            status=400,
+            headers=headers
+        )
+    except Exception as e:
+        return https_fn.Response(
+            json.dumps({'error': f'Internal server error: {str(e)}'}),
+            status=500,
+            headers=headers
+        )
+@https_fn.on_request()
+def moon_phase(req: https_fn.Request) -> https_fn.Response:
+    """
+    Firebase HTTP function to determine if the Moon is ascending or descending.
+    
+    Expected JSON payload:
+    {
+        "date": [year, month, day],
+        "time": [hour, minute, second],
+        "latitude": float,
+        "longitude": float,
+        "timezone_offset_hours": float (optional, defaults to 0)
+    }
+    """
+    # Set CORS headers
+    headers = {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'POST, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type',
+    }
+    
+    # Handle preflight OPTIONS request
+    if req.method == 'OPTIONS':
+        return https_fn.Response('', status=204, headers=headers)
+    
+    # Only allow POST requests
+    if req.method != 'POST':
+        return https_fn.Response(
+            json.dumps({'error': 'Method not allowed'}),
+            status=405,
+            headers=headers
+        )
+    
+    try:
+        # Parse request data
+        data = req.get_json()
+        
+        if not data:
+            return https_fn.Response(
+                json.dumps({'error': 'No JSON data provided'}),
+                status=400,
+                headers=headers
+            )
+        
+        # Validate required fields
+        required_fields = ['date', 'time', 'latitude', 'longitude']
+        for field in required_fields:
+            if field not in data:
+                return https_fn.Response(
+                    json.dumps({'error': f'Missing required field: {field}'}),
+                    status=400,
+                    headers=headers
+                )
+        
+        # Extract and validate data
+        date = tuple(data['date'])
+        time = tuple(data['time'])
+        latitude = float(data['latitude'])
+        longitude = float(data['longitude'])
+        timezone_offset = float(data.get('timezone_offset_hours', 0.0))
+        
+        # Validate date and time format
+        if len(date) != 3 or len(time) != 3:
+            return https_fn.Response(
+                json.dumps({'error': 'Date and time must be arrays of 3 elements [year, month, day] and [hour, minute, second]'}),
+                status=400,
+                headers=headers
+            )
+        
+        # Calculate positions first
+        positions = calculate_positions(
+            date=date,
+            time=time,
+            latitude=latitude,
+            longitude=longitude,
+            timezone_offset_hours=timezone_offset
+        )
+        
+        # Determine Moon phase
+        moon_phase_result = moon_ascending_descending(positions)
+        
+        # Get Moon position details
+        moon_sign, moon_decan, moon_degree_in_sign, moon_absolute_longitude = positions["Moon"]
+        ascendant_longitude = positions["Ascendant"][3]
+        descendant_longitude = positions["Descendant"][3]
+        
+        # Format response
+        response_data = {
+            'success': True,
+            'moon_phase': moon_phase_result,
+            'moon_position': {
+                'sign': moon_sign,
+                'decan': moon_decan,
+                'degree_in_sign': round(moon_degree_in_sign, 2),
+                'absolute_longitude': round(moon_absolute_longitude, 2)
+            },
+            'reference_points': {
+                'ascendant_longitude': round(ascendant_longitude, 2),
+                'descendant_longitude': round(descendant_longitude, 2)
+            },
             'birth_data': {
                 'date': {
                     'year': date[0],

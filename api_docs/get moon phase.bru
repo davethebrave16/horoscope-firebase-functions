@@ -1,0 +1,21 @@
+meta {
+  name: get moon phase
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{host}}/moon_phase
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+      "date": [1990, 5, 15],
+      "time": [14, 30, 0],
+      "latitude": 41.9028,
+      "longitude": 12.4964,
+      "timezone_offset_hours": 1.0
+    }
+}
