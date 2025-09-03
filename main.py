@@ -3,6 +3,7 @@ from typing import Dict, Tuple, List
 from firebase_functions import https_fn
 from firebase_admin import initialize_app
 import json
+import os
 
 # Initialize Firebase Admin
 initialize_app()
@@ -11,7 +12,7 @@ initialize_app()
 CORS_HEADERS = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
 }
 
 def handle_cors_preflight(req: https_fn.Request) -> https_fn.Response:
@@ -94,6 +95,40 @@ def create_success_response(data: dict) -> https_fn.Response:
         status=200,
         headers=CORS_HEADERS
     )
+
+def validate_authorization(req: https_fn.Request) -> https_fn.Response:
+    """Validate Authorization header against API_KEY environment variable."""
+    api_key = os.getenv('API_KEY')
+    
+    if not api_key:
+        return https_fn.Response(
+            json.dumps({'error': 'API key not configured'}),
+            status=500,
+            headers=CORS_HEADERS
+        )
+    
+    auth_header = req.headers.get('Authorization')
+    if not auth_header:
+        return https_fn.Response(
+            json.dumps({'error': 'Authorization header required'}),
+            status=401,
+            headers=CORS_HEADERS
+        )
+    
+    # Support both "Bearer <token>" and direct token formats
+    if auth_header.startswith('Bearer '):
+        token = auth_header[7:]
+    else:
+        token = auth_header
+    
+    if token != api_key:
+        return https_fn.Response(
+            json.dumps({'error': 'Invalid API key'}),
+            status=401,
+            headers=CORS_HEADERS
+        )
+    
+    return None
 
 # Zodiac signs in Italian (keeping original names as they're astrological terms)
 ZODIAC_SIGNS = [
@@ -274,6 +309,11 @@ def calculate_horoscope(req: https_fn.Request) -> https_fn.Response:
     if cors_response:
         return cors_response
     
+    # Validate authorization
+    auth_response = validate_authorization(req)
+    if auth_response:
+        return auth_response
+    
     # Validate request method
     method_response = validate_request_method(req)
     if method_response:
@@ -354,6 +394,11 @@ def calculate_aspects(req: https_fn.Request) -> https_fn.Response:
     if cors_response:
         return cors_response
     
+    # Validate authorization
+    auth_response = validate_authorization(req)
+    if auth_response:
+        return auth_response
+    
     # Validate request method
     method_response = validate_request_method(req)
     if method_response:
@@ -429,6 +474,11 @@ def moon_phase(req: https_fn.Request) -> https_fn.Response:
     cors_response = handle_cors_preflight(req)
     if cors_response:
         return cors_response
+    
+    # Validate authorization
+    auth_response = validate_authorization(req)
+    if auth_response:
+        return auth_response
     
     # Validate request method
     method_response = validate_request_method(req)
