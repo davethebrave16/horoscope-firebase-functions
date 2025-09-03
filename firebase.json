@@ -20,6 +20,9 @@
     "ui": {
       "enabled": true
     },
-    "singleProjectMode": true
+    "singleProjectMode": true,
+    "logging": {
+      "level": "debug"
+    }
   }
 }

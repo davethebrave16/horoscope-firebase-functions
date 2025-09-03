@@ -1,5 +1,5 @@
 import swisseph as swe
-from typing import Dict, Tuple
+from typing import Dict, Tuple, List
 from firebase_functions import https_fn
 from firebase_admin import initialize_app
 import json
@@ -102,6 +102,51 @@ def calculate_positions(
 
     return results
 
+# Aspect constants
+ASPECTS = {
+    "Conjunction": 0,
+    "Sextile": 60,
+    "Square": 90,
+    "Trine": 120,
+    "Opposition": 180,
+}
+
+def calculate_planetary_aspects(positions: Dict[str, Tuple[str, int, float, float]], orb: float = 6) -> List[Dict[str, str]]:
+    """
+    Calculate aspects between planets and houses.
+    
+    Args:
+        positions: Dictionary with planetary and house positions
+        orb: Orb tolerance in degrees (default 6)
+        
+    Returns:
+        List of aspect dictionaries with planet names, aspect type, and degrees
+    """
+    aspects_found = []
+    names = list(positions.keys())
+
+    for i in range(len(names)):
+        for j in range(i + 1, len(names)):
+            name1, name2 = names[i], names[j]
+            lon1 = positions[name1][3]  # Absolute longitude
+            lon2 = positions[name2][3]  # Absolute longitude
+
+            diff = abs(lon1 - lon2)
+            if diff > 180:
+                diff = 360 - diff
+
+            for aspect_name, aspect_degrees in ASPECTS.items():
+                if abs(diff - aspect_degrees) <= orb:
+                    aspects_found.append({
+                        "planet1": name1,
+                        "planet2": name2,
+                        "aspect": aspect_name,
+                        "degrees": round(diff, 2),
+                        "orb": round(abs(diff - aspect_degrees), 2)
+                    })
+    
+    return aspects_found
+
 @https_fn.on_request()
 def calculate_horoscope(req: https_fn.Request) -> https_fn.Response:
     """
@@ -196,6 +241,133 @@ def calculate_horoscope(req: https_fn.Request) -> https_fn.Response:
                 'planets': {k: v for k, v in formatted_positions.items() if k in PLANETS.keys()},
                 'houses': {k: v for k, v in formatted_positions.items() if k not in PLANETS.keys()}
             },
+            'birth_data': {
+                'date': {
+                    'year': date[0],
+                    'month': date[1],
+                    'day': date[2]
+                },
+                'time': {
+                    'hour': time[0],
+                    'minute': time[1],
+                    'second': time[2]
+                },
+                'location': {
+                    'latitude': latitude,
+                    'longitude': longitude,
+                    'timezone_offset_hours': timezone_offset
+                }
+            }
+        }
+        
+        return https_fn.Response(
+            json.dumps(response_data, indent=2),
+            status=200,
+            headers=headers
+        )
+        
+    except ValueError as e:
+        return https_fn.Response(
+            json.dumps({'error': f'Invalid data format: {str(e)}'}),
+            status=400,
+            headers=headers
+        )
+    except Exception as e:
+        return https_fn.Response(
+            json.dumps({'error': f'Internal server error: {str(e)}'}),
+            status=500,
+            headers=headers
+        )
+
+@https_fn.on_request()
+def calculate_aspects(req: https_fn.Request) -> https_fn.Response:
+    """
+    Firebase HTTP function to calculate aspects between planets and houses.
+    
+    Expected JSON payload:
+    {
+        "date": [year, month, day],
+        "time": [hour, minute, second],
+        "latitude": float,
+        "longitude": float,
+        "timezone_offset_hours": float (optional, defaults to 0),
+        "orb": float (optional, defaults to 6)
+    }
+    """
+    # Set CORS headers
+    headers = {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'POST, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type',
+    }
+    
+    # Handle preflight OPTIONS request
+    if req.method == 'OPTIONS':
+        return https_fn.Response('', status=204, headers=headers)
+    
+    # Only allow POST requests
+    if req.method != 'POST':
+        return https_fn.Response(
+            json.dumps({'error': 'Method not allowed'}),
+            status=405,
+            headers=headers
+        )
+    
+    try:
+        # Parse request data
+        data = req.get_json()
+        
+        if not data:
+            return https_fn.Response(
+                json.dumps({'error': 'No JSON data provided'}),
+                status=400,
+                headers=headers
+            )
+        
+        # Validate required fields
+        required_fields = ['date', 'time', 'latitude', 'longitude']
+        for field in required_fields:
+            if field not in data:
+                return https_fn.Response(
+                    json.dumps({'error': f'Missing required field: {field}'}),
+                    status=400,
+                    headers=headers
+                )
+        
+        # Extract and validate data
+        date = tuple(data['date'])
+        time = tuple(data['time'])
+        latitude = float(data['latitude'])
+        longitude = float(data['longitude'])
+        timezone_offset = float(data.get('timezone_offset_hours', 0.0))
+        orb = float(data.get('orb', 6.0))
+        
+        # Validate date and time format
+        if len(date) != 3 or len(time) != 3:
+            return https_fn.Response(
+                json.dumps({'error': 'Date and time must be arrays of 3 elements [year, month, day] and [hour, minute, second]'}),
+                status=400,
+                headers=headers
+            )
+        
+        # Calculate positions first
+        positions = calculate_positions(
+            date=date,
+            time=time,
+            latitude=latitude,
+            longitude=longitude,
+            timezone_offset_hours=timezone_offset
+        )
+        
+        # Calculate aspects
+        aspects = calculate_planetary_aspects(positions, orb)
+        
+        # Format response
+        response_data = {
+            'success': True,
+            'aspects': aspects,
+            'aspect_count': len(aspects),
+            'orb_used': orb,
             'birth_data': {
                 'date': {
                     'year': date[0],
