@@ -290,7 +290,7 @@ def moon_ascending_descending(positions: Dict[str, Tuple[str, int, float, float]
     else:
         return "The Moon is in descending phase (from Dsc to Asc)."
 
-@https_fn.on_request()
+@https_fn.on_request(region="europe-west1")
 def calculate_horoscope(req: https_fn.Request) -> https_fn.Response:
     """
     Firebase HTTP function to calculate horoscope positions.
@@ -374,7 +374,7 @@ def calculate_horoscope(req: https_fn.Request) -> https_fn.Response:
     except Exception as e:
         return create_error_response(f'Internal server error: {str(e)}')
 
-@https_fn.on_request()
+@https_fn.on_request(region="europe-west1")
 def calculate_aspects(req: https_fn.Request) -> https_fn.Response:
     """
     Firebase HTTP function to calculate aspects between planets and houses.
@@ -456,7 +456,7 @@ def calculate_aspects(req: https_fn.Request) -> https_fn.Response:
     except Exception as e:
         return create_error_response(f'Internal server error: {str(e)}')
 
-@https_fn.on_request()
+@https_fn.on_request(region="europe-west1")
 def moon_phase(req: https_fn.Request) -> https_fn.Response:
     """
     Firebase HTTP function to determine if the Moon is ascending or descending.
