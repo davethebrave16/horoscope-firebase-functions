@@ -1,0 +1,21 @@
+meta {
+  name: get sign and decane
+  type: http
+  seq: 2
+}
+
+post {
+  url: http://127.0.0.1:5001/horoscope-25aa9/us-central1/calculate_horoscope
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+      "date": [1990, 5, 15],
+      "time": [14, 30, 0],
+      "latitude": 41.9028,
+      "longitude": 12.4964,
+      "timezone_offset_hours": 1.0
+    }
+}
