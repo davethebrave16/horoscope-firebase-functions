@@ -180,16 +180,38 @@ def calculate_horoscope(req: https_fn.Request) -> https_fn.Response:
             timezone_offset_hours=timezone_offset
         )
         
-        # Format response
+        # Format response with readable structure
+        formatted_positions = {}
+        for name, (sign, decan, degree_in_sign, absolute_longitude) in positions.items():
+            formatted_positions[name] = {
+                'sign': sign,
+                'decan': decan,
+                'degree_in_sign': round(degree_in_sign, 2),
+                'absolute_longitude': round(absolute_longitude, 2)
+            }
+        
         response_data = {
             'success': True,
-            'positions': positions,
-            'input_data': {
-                'date': date,
-                'time': time,
-                'latitude': latitude,
-                'longitude': longitude,
-                'timezone_offset_hours': timezone_offset
+            'horoscope': {
+                'planets': {k: v for k, v in formatted_positions.items() if k in PLANETS.keys()},
+                'houses': {k: v for k, v in formatted_positions.items() if k not in PLANETS.keys()}
+            },
+            'birth_data': {
+                'date': {
+                    'year': date[0],
+                    'month': date[1],
+                    'day': date[2]
+                },
+                'time': {
+                    'hour': time[0],
+                    'minute': time[1],
+                    'second': time[2]
+                },
+                'location': {
+                    'latitude': latitude,
+                    'longitude': longitude,
+                    'timezone_offset_hours': timezone_offset
+                }
             }
         }
         
