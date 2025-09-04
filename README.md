@@ -203,12 +203,33 @@ This project follows **Clean Code** and **Firebase Functions** best practices:
 - **Functions README**: `functions/README.md` - detailed API documentation
 - **Refactoring Summary**: `REFACTORING_SUMMARY.md` - architecture details
 
+## 🚀 CI/CD
+
+This project uses GitHub Actions for automated testing and deployment:
+
+### **Pull Requests**
+- ✅ **Automated Tests**: Runs on every PR
+- ✅ **Coverage Report**: Shows test coverage
+- ✅ **Quality Gates**: Fails if tests don't pass
+
+### **Deployment**
+- ✅ **Auto Deploy**: Deploys to Firebase on push to master/main
+- ✅ **Test First**: Runs tests before deployment
+- ✅ **Zero Downtime**: Seamless function updates
+
+### **Workflows**
+- `pr-test.yml` - Tests only (for PRs)
+- `test.yml` - Tests on push to main branches
+- `deploy.yml` - Tests + Deploy to Firebase
+
 ## 🤝 Contributing
 
-1. Follow the existing code structure
-2. Add tests for new features
-3. Update documentation
-4. Ensure all functions maintain API compatibility
+1. **Create a branch** from master
+2. **Make your changes** following the existing code structure
+3. **Add tests** for new features
+4. **Create a PR** - tests will run automatically
+5. **Ensure all tests pass** before merging
+6. **Update documentation** as needed
 
 ## 📄 License
 
