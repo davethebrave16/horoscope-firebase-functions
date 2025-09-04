@@ -74,10 +74,7 @@ jobs:
 
       # 11. Deploy to Firebase Functions
       - name: Deploy to Firebase Functions
-        run: |
-          source venv/bin/activate
-          firebase deploy --only functions --project "${{ secrets.FIREBASE_PROJECT_ID }}" --token "${{ secrets.FIREBASE_TOKEN }}"
-        working-directory: ./functions
+        run: firebase deploy --only functions --project "${{ secrets.FIREBASE_PROJECT_ID }}" --token "${{ secrets.FIREBASE_TOKEN }}"
 
       # 12. Verify deployment
       - name: Verify deployment

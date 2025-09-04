@@ -10,7 +10,10 @@
         "firebase-debug.*.log",
         "*.local"
       ],
-      "predeploy": []
+      "predeploy": [
+        "cd functions && python -m venv venv",
+        "cd functions && source venv/bin/activate && pip install -r requirements.txt"
+      ]
     }
   ],
   "emulators": {
