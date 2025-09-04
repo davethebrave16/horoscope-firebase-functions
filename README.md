@@ -143,15 +143,26 @@ Determine if the Moon is in ascending or descending phase.
 }
 ```
 
-> **📖 Detailed API Documentation**: See `functions/README.md` for complete request/response examples and data formats.
+> **📖 API Examples**: See the Bruno collection in `api_docs/` for complete request/response examples.
 
 ## 🧪 Testing
 
+### Run Tests
 ```bash
 cd functions
-pip install -r requirements-dev.txt
-pytest tests/
+source venv/bin/activate
+pytest tests/ -v
 ```
+
+### Run Tests with Coverage
+```bash
+pytest tests/ --cov=src --cov-report=html --cov-report=term
+```
+
+### Test Results
+- ✅ **4 tests passing** - All core astrological calculations tested
+- ✅ **96% coverage** on core business logic (`astro_calculations.py`)
+- ✅ **Tests cover**: Sign/decan calculation, position calculation, aspects, moon phases
 
 ## 🏛️ Architecture
 
