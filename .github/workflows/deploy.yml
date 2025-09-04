@@ -83,6 +83,13 @@ jobs:
           ls -la functions/
           echo "Virtual environment contents:"
           ls -la functions/venv/bin/ || echo "No venv/bin directory found"
+          echo "Python version in venv:"
+          functions/venv/bin/python --version
+          echo "Setting up environment for Firebase..."
+          cd functions
+          source venv/bin/activate
+          pip install -r requirements.txt
+          cd ..
           firebase deploy --only functions --project "${{ secrets.FIREBASE_PROJECT_ID }}" --token "${{ secrets.FIREBASE_TOKEN }}"
 
       # 12. Verify deployment
