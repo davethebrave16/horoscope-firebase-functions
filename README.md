@@ -218,9 +218,8 @@ This project uses GitHub Actions for automated testing and deployment:
 - ✅ **Zero Downtime**: Seamless function updates
 
 ### **Workflows**
-- `pr-test.yml` - Tests only (for PRs)
-- `test.yml` - Tests on push to main branches
-- `deploy.yml` - Tests + Deploy to Firebase
+- `test.yml` - Tests on pull requests
+- `deploy.yml` - Tests + Deploy to Firebase on push to master
 
 ## 🤝 Contributing
 

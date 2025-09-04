@@ -11,22 +11,22 @@ To enable deployment, add these secrets to your GitHub repository:
 - **How to get**: Run `firebase login:ci` locally
 - **Value**: The token returned by the command
 
-### 2. API Key
+### 2. Firebase Project ID
+- **Secret Name**: `FIREBASE_PROJECT_ID`
+- **How to get**: From Firebase Console or `firebase projects:list`
+- **Value**: Your Firebase project ID (e.g., `my-project-12345`)
+
+### 3. API Key
 - **Secret Name**: `API_KEY`
 - **Value**: Your API key for Firebase Functions authentication
 - **Required**: Yes - Functions need this for authorization
 
 ## 📋 Workflows
 
-### `pr-test.yml` - Pull Request Tests
+### `test.yml` - Pull Request Tests
 - **Triggers**: On pull requests to master/main
 - **Actions**: Runs tests with coverage
 - **Purpose**: Ensure code quality before merging
-
-### `test.yml` - Push Tests  
-- **Triggers**: On push to master/main
-- **Actions**: Runs tests with coverage
-- **Purpose**: Continuous testing
 
 ### `deploy.yml` - Deployment
 - **Triggers**: On push to master/main
@@ -35,17 +35,29 @@ To enable deployment, add these secrets to your GitHub repository:
 
 ## 🚀 Setup Steps
 
-1. **Add Firebase Token**:
+1. **Get Firebase Token**:
    ```bash
    firebase login:ci
    # Copy the token and add it as FIREBASE_TOKEN secret
    ```
 
-2. **Enable GitHub Actions**:
+2. **Get Firebase Project ID**:
+   ```bash
+   firebase projects:list
+   # Copy your project ID and add it as FIREBASE_PROJECT_ID secret
+   ```
+
+3. **Add GitHub Secrets**:
+   - Go to repository Settings → Secrets and variables → Actions
+   - Add `FIREBASE_TOKEN` with the token from step 1
+   - Add `FIREBASE_PROJECT_ID` with your project ID from step 2
+   - Add `API_KEY` with your API key
+
+4. **Enable GitHub Actions**:
    - Go to repository Settings → Actions
    - Enable "Allow all actions and reusable workflows"
 
-3. **Test the workflows**:
+5. **Test the workflows**:
    - Create a test branch
    - Make a small change
    - Create a PR to see tests run
