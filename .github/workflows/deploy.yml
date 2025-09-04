@@ -54,7 +54,7 @@ jobs:
 
       # 9. Deploy to Firebase Functions
       - name: Deploy to Firebase Functions
-        run: firebase deploy --only functions --token "${{ secrets.FIREBASE_TOKEN }}"
+        run: firebase deploy --only functions --project "${{ secrets.FIREBASE_PROJECT_ID }}" --token "${{ secrets.FIREBASE_TOKEN }}"
         working-directory: ./functions
 
       # 10. Verify deployment
