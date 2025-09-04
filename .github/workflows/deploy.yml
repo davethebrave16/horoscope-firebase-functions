@@ -20,44 +20,56 @@ jobs:
         with:
           python-version: '3.12'
 
-      # 3. Install dependencies
+      # 3. Create virtual environment
+      - name: Create virtual environment
+        working-directory: ./functions
+        run: python -m venv venv
+
+      # 4. Install dependencies
       - name: Install production dependencies
         working-directory: ./functions
         run: |
+          source venv/bin/activate
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      # 4. Install development dependencies
+      # 5. Install development dependencies
       - name: Install development dependencies
         working-directory: ./functions
-        run: pip install -r requirements-dev.txt
+        run: |
+          source venv/bin/activate
+          pip install -r requirements-dev.txt
 
-      # 5. Create .env file from GitHub Secrets
+      # 6. Create .env file from GitHub Secrets
       - name: Create .env file
         working-directory: ./functions
         run: |
           echo "API_KEY=${{ secrets.API_KEY }}" >> .env
 
-      # 6. Run tests
+      # 7. Run tests
       - name: Run tests
         working-directory: ./functions
-        run: pytest tests/ -v
+        run: |
+          source venv/bin/activate
+          pytest tests/ -v
 
-      # 7. Run tests with coverage
+      # 8. Run tests with coverage
       - name: Run tests with coverage
         working-directory: ./functions
-        run: pytest tests/ --cov=src --cov-report=xml --cov-report=term
+        run: |
+          source venv/bin/activate
+          pytest tests/ --cov=src --cov-report=xml --cov-report=term
 
-      # 8. Install Firebase CLI
+      # 9. Install Firebase CLI
       - name: Install Firebase CLI
         run: npm install -g firebase-tools
 
-      # 9. Deploy to Firebase Functions
+      # 10. Deploy to Firebase Functions
       - name: Deploy to Firebase Functions
         run: firebase deploy --only functions --project "${{ secrets.FIREBASE_PROJECT_ID }}" --token "${{ secrets.FIREBASE_TOKEN }}"
         working-directory: ./functions
 
-      # 10. Verify deployment
+      # 11. Verify deployment
       - name: Verify deployment
         run: |
           echo "✅ Firebase Functions deployed successfully!"
