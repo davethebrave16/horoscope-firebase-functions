@@ -1,7 +1,7 @@
 """Horoscope calculation API endpoint."""
 
 from firebase_functions import https_fn
-from ..core.astro_calculations import calculate_positions, PLANETS
+from ..core.astro_calculations import calculate_positions, PLANETS, calculate_lenormand_card
 from ..core.validation import (
     handle_cors_preflight,
     validate_authorization,
@@ -66,11 +66,22 @@ def calculate_horoscope(req: https_fn.Request) -> https_fn.Response:
                 'absolute_longitude': round(absolute_longitude, 2)
             }
         
+        # Calculate Lenormand card based on Moon's position
+        moon_data = formatted_positions.get('Moon', {})
+        moon_sign = moon_data.get('sign', 'Unknown')
+        moon_decan = moon_data.get('decan', 1)
+        lenormand_card = calculate_lenormand_card(moon_sign, moon_decan)
+        
         response_data = {
             'success': True,
             'horoscope': {
                 'planets': {k: v for k, v in formatted_positions.items() if k in PLANETS.keys()},
                 'houses': {k: v for k, v in formatted_positions.items() if k not in PLANETS.keys()}
+            },
+            'lenormand_card': {
+                'card': lenormand_card,
+                'moon_sign': moon_sign,
+                'moon_decan': moon_decan
             },
             'birth_data': {
                 'date': {
