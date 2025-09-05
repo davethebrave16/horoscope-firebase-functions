@@ -4,6 +4,7 @@ import swisseph as swe
 from typing import Dict, Tuple, List
 from dataclasses import dataclass
 from datetime import datetime, timedelta
+from math import floor, pi, cos
 from .config import ZODIAC_SIGNS, ASPECTS, DEFAULT_ORB, LENORMAND_CARDS
 
 # Planet constants from Swiss Ephemeris
@@ -133,27 +134,6 @@ def calculate_planetary_aspects(positions: Dict[str, Tuple[str, int, float, floa
                     })
     
     return aspects_found
-
-
-def moon_ascending_descending(positions: Dict[str, Tuple[str, int, float, float]]) -> str:
-    """
-    Determine if the Moon is ascending or descending:
-    - Ascending -> Moon is in the eastern half (from house 1 to 6)
-    - Descending -> Moon is in the western half (from house 7 to 12)
-    Simplified: compare Moon longitude with Ascendant/Descendant.
-    """
-    moon_longitude = positions["Moon"][3]
-    ascendant_longitude = positions["Ascendant"][3]
-    descendant_longitude = positions["Descendant"][3]
-
-    # Normalize differences
-    diff_moon_asc = (moon_longitude - ascendant_longitude + 360) % 360
-    diff_dsc_asc = (descendant_longitude - ascendant_longitude + 360) % 360
-
-    if diff_moon_asc < diff_dsc_asc:
-        return "The Moon is in ascending phase (from Asc to Dsc)."
-    else:
-        return "The Moon is in descending phase (from Dsc to Asc)."
 
 
 @dataclass
@@ -339,3 +319,78 @@ def calculate_lenormand_card(moon_sign: str, moon_decan: int) -> str:
         return "Unknown"
     
     return LENORMAND_CARDS[moon_sign][moon_decan]
+
+
+def to_julian_date(year: int, month: int, day: int, hour: int = 0, minute: int = 0, second: int = 0) -> float:
+    """
+    Convert Gregorian date to Julian date.
+    
+    Args:
+        year: Year
+        month: Month (1-12)
+        day: Day (1-31)
+        hour: Hour (0-23)
+        minute: Minute (0-59)
+        second: Second (0-59)
+        
+    Returns:
+        Julian date as float
+    """
+    a = floor((14 - month) / 12)
+    y = year + 4800 - a
+    m = month + 12 * a - 3
+    jd = day + floor((153 * m + 2) / 5) + 365 * y + floor(y / 4) - floor(y / 100) + floor(y / 400) - 32045
+    day_fraction = (hour + minute / 60 + second / 3600) / 24.0
+    return jd + day_fraction
+
+
+def calculate_moon_phase(year: int, month: int, day: int, hour: int = 0, minute: int = 0, second: int = 0) -> Dict[str, any]:
+    """
+    Calculate the moon phase for a given date and time.
+    
+    Args:
+        year: Year
+        month: Month (1-12)
+        day: Day (1-31)
+        hour: Hour (0-23)
+        minute: Minute (0-59)
+        second: Second (0-59)
+        
+    Returns:
+        Dictionary containing moon phase information
+    """
+    JD = to_julian_date(year, month, day, hour, minute, second)
+    JD0 = 2451550.1  # Reference epoch (commonly used)
+    synodic_month = 29.530588853
+    D = JD - JD0
+    N = D / synodic_month
+    frac = N - floor(N)
+    age = frac * synodic_month
+    phi = 2 * pi * frac
+    illuminated = (1 - cos(phi)) / 2.0
+
+    # Phase name determination (8 sectors)
+    if frac < 0.03 or frac > 0.97:
+        phase_name = "New Moon"
+    elif frac < 0.25:
+        phase_name = "Waxing Crescent"
+    elif frac < 0.27:
+        phase_name = "First Quarter"
+    elif frac < 0.50:
+        phase_name = "Waxing Gibbous"
+    elif frac < 0.53:
+        phase_name = "Full Moon"
+    elif frac < 0.75:
+        phase_name = "Waning Gibbous"
+    elif frac < 0.77:
+        phase_name = "Last Quarter"
+    else:
+        phase_name = "Waning Crescent"
+
+    return {
+        "julian_date": JD,
+        "age_days": round(age, 2),
+        "fraction_of_cycle": round(frac, 4),
+        "illuminated_fraction": round(illuminated, 4),
+        "phase_name": phase_name
+    }

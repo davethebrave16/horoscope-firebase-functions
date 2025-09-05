@@ -1,12 +1,11 @@
 """Moon phase calculation API endpoint."""
 
 from firebase_functions import https_fn
-from ..core.astro_calculations import calculate_positions, moon_ascending_descending
+from ..core.astro_calculations import calculate_moon_phase
 from ..core.validation import (
     handle_cors_preflight,
     validate_authorization,
-    validate_request_method,
-    parse_and_validate_birth_data
+    validate_request_method
 )
 from ..utils.response_utils import create_success_response, create_error_response
 from ..core.config import FIREBASE_REGION
@@ -15,15 +14,12 @@ from ..core.config import FIREBASE_REGION
 @https_fn.on_request(region=FIREBASE_REGION)
 def moon_phase(req: https_fn.Request) -> https_fn.Response:
     """
-    Firebase HTTP function to determine if the Moon is ascending or descending.
+    Firebase HTTP function to calculate the moon phase for a given date and time.
     
     Expected JSON payload:
     {
         "date": [year, month, day],
-        "time": [hour, minute, second],
-        "latitude": float,
-        "longitude": float,
-        "timezone_offset_hours": float (optional, defaults to 0)
+        "time": [hour, minute, second] (optional, defaults to [0, 0, 0])
     }
     """
     # Handle CORS preflight
@@ -42,57 +38,73 @@ def moon_phase(req: https_fn.Request) -> https_fn.Response:
         return method_response
     
     try:
-        # Parse and validate birth data
-        date, time, latitude, longitude, timezone_offset, error_response = parse_and_validate_birth_data(req)
-        if error_response:
-            return error_response
+        # Parse JSON request
+        if not req.is_json:
+            return create_error_response('Request must be JSON', 400)
         
-        # Calculate positions first
-        positions = calculate_positions(
-            date=date,
-            time=time,
-            latitude=latitude,
-            longitude=longitude,
-            timezone_offset_hours=timezone_offset
-        )
+        data = req.get_json()
+        if not data:
+            return create_error_response('Invalid JSON data', 400)
         
-        # Determine Moon phase
-        moon_phase_result = moon_ascending_descending(positions)
+        # Validate required fields
+        if 'date' not in data:
+            return create_error_response('Missing required field: date', 400)
         
-        # Get Moon position details
-        moon_sign, moon_decan, moon_degree_in_sign, moon_absolute_longitude = positions["Moon"]
-        ascendant_longitude = positions["Ascendant"][3]
-        descendant_longitude = positions["Descendant"][3]
+        date = data['date']
+        if not isinstance(date, list) or len(date) != 3:
+            return create_error_response('Date must be an array [year, month, day]', 400)
+        
+        year, month, day = date
+        if not all(isinstance(x, int) for x in [year, month, day]):
+            return create_error_response('Date values must be integers', 400)
+        
+        if not (1 <= month <= 12):
+            return create_error_response('Month must be between 1 and 12', 400)
+        
+        if not (1 <= day <= 31):
+            return create_error_response('Day must be between 1 and 31', 400)
+        
+        # Validate time (optional)
+        time = data.get('time', [0, 0, 0])
+        if not isinstance(time, list) or len(time) != 3:
+            return create_error_response('Time must be an array [hour, minute, second]', 400)
+        
+        hour, minute, second = time
+        if not all(isinstance(x, int) for x in [hour, minute, second]):
+            return create_error_response('Time values must be integers', 400)
+        
+        if not (0 <= hour <= 23):
+            return create_error_response('Hour must be between 0 and 23', 400)
+        
+        if not (0 <= minute <= 59):
+            return create_error_response('Minute must be between 0 and 59', 400)
+        
+        if not (0 <= second <= 59):
+            return create_error_response('Second must be between 0 and 59', 400)
+        
+        # Calculate moon phase
+        moon_phase_data = calculate_moon_phase(year, month, day, hour, minute, second)
         
         # Format response
         response_data = {
             'success': True,
-            'moon_phase': moon_phase_result,
-            'moon_position': {
-                'sign': moon_sign,
-                'decan': moon_decan,
-                'degree_in_sign': round(moon_degree_in_sign, 2),
-                'absolute_longitude': round(moon_absolute_longitude, 2)
+            'moon_phase': {
+                'phase_name': moon_phase_data['phase_name'],
+                'age_days': moon_phase_data['age_days'],
+                'fraction_of_cycle': moon_phase_data['fraction_of_cycle'],
+                'illuminated_fraction': moon_phase_data['illuminated_fraction'],
+                'julian_date': moon_phase_data['julian_date']
             },
-            'reference_points': {
-                'ascendant_longitude': round(ascendant_longitude, 2),
-                'descendant_longitude': round(descendant_longitude, 2)
-            },
-            'birth_data': {
+            'request_data': {
                 'date': {
-                    'year': date[0],
-                    'month': date[1],
-                    'day': date[2]
+                    'year': year,
+                    'month': month,
+                    'day': day
                 },
                 'time': {
-                    'hour': time[0],
-                    'minute': time[1],
-                    'second': time[2]
-                },
-                'location': {
-                    'latitude': latitude,
-                    'longitude': longitude,
-                    'timezone_offset_hours': timezone_offset
+                    'hour': hour,
+                    'minute': minute,
+                    'second': second
                 }
             }
         }

@@ -5,9 +5,10 @@ from src.core.astro_calculations import (
     get_sign_and_decan,
     calculate_positions,
     calculate_planetary_aspects,
-    moon_ascending_descending,
     calculate_planetary_transits,
     calculate_lenormand_card,
+    to_julian_date,
+    calculate_moon_phase,
     Transit
 )
 
@@ -64,17 +65,6 @@ class TestAstroCalculations:
             assert "aspect" in aspect
             assert "degrees" in aspect
 
-    def test_moon_ascending_descending(self):
-        """Test moon phase determination."""
-        # Create mock positions
-        positions = {
-            "Moon": ("Aries", 1, 10.0, 10.0),
-            "Ascendant": ("Aries", 1, 5.0, 5.0),
-            "Descendant": ("Libra", 1, 5.0, 185.0)
-        }
-        
-        result = moon_ascending_descending(positions)
-        assert "ascending" in result.lower() or "descending" in result.lower()
 
     def test_calculate_planetary_transits_basic(self):
         """Test basic planetary transits calculation."""
@@ -216,3 +206,96 @@ class TestAstroCalculations:
         assert calculate_lenormand_card("InvalidSign", 1) == "Unknown"
         assert calculate_lenormand_card("Aries", 4) == "Unknown"
         assert calculate_lenormand_card("Aries", 0) == "Unknown"
+
+    def test_to_julian_date(self):
+        """Test Julian date conversion."""
+        # Test known date: January 1, 2000 12:00:00 UTC
+        jd = to_julian_date(2000, 1, 1, 12, 0, 0)
+        assert isinstance(jd, float)
+        assert jd > 2451544  # Should be around 2451545 for Jan 1, 2000
+        
+        # Test without time (should default to 00:00:00)
+        jd_midnight = to_julian_date(2000, 1, 1)
+        assert jd_midnight < jd  # Midnight should be earlier than noon
+        
+        # Test different dates
+        jd_2025 = to_julian_date(2025, 9, 5, 22, 30, 0)
+        assert jd_2025 > jd  # 2025 should be later than 2000
+
+    def test_calculate_moon_phase_basic(self):
+        """Test basic moon phase calculation."""
+        # Test with a known date
+        result = calculate_moon_phase(2025, 9, 5, 22, 30, 0)
+        
+        # Check structure
+        assert isinstance(result, dict)
+        assert "phase_name" in result
+        assert "age_days" in result
+        assert "fraction_of_cycle" in result
+        assert "illuminated_fraction" in result
+        assert "julian_date" in result
+        
+        # Check data types
+        assert isinstance(result["phase_name"], str)
+        assert isinstance(result["age_days"], float)
+        assert isinstance(result["fraction_of_cycle"], float)
+        assert isinstance(result["illuminated_fraction"], float)
+        assert isinstance(result["julian_date"], float)
+        
+        # Check value ranges
+        assert 0 <= result["age_days"] <= 29.6  # Moon cycle is ~29.5 days
+        assert 0 <= result["fraction_of_cycle"] <= 1
+        assert 0 <= result["illuminated_fraction"] <= 1
+        assert result["julian_date"] > 0
+
+    def test_calculate_moon_phase_phase_names(self):
+        """Test that moon phase names are valid."""
+        # Test different dates to get different phases
+        test_dates = [
+            (2025, 1, 1, 0, 0, 0),
+            (2025, 6, 15, 12, 0, 0),
+            (2025, 12, 31, 23, 59, 59)
+        ]
+        
+        valid_phases = [
+            "New Moon", "Waxing Crescent", "First Quarter", 
+            "Waxing Gibbous", "Full Moon", "Waning Gibbous", 
+            "Last Quarter", "Waning Crescent"
+        ]
+        
+        for year, month, day, hour, minute, second in test_dates:
+            result = calculate_moon_phase(year, month, day, hour, minute, second)
+            assert result["phase_name"] in valid_phases
+
+    def test_calculate_moon_phase_consistency(self):
+        """Test that moon phase calculation is consistent."""
+        # Same date should give same result
+        result1 = calculate_moon_phase(2025, 9, 5, 22, 30, 0)
+        result2 = calculate_moon_phase(2025, 9, 5, 22, 30, 0)
+        
+        assert result1["phase_name"] == result2["phase_name"]
+        assert result1["age_days"] == result2["age_days"]
+        assert result1["fraction_of_cycle"] == result2["fraction_of_cycle"]
+        assert result1["illuminated_fraction"] == result2["illuminated_fraction"]
+
+    def test_calculate_moon_phase_time_progression(self):
+        """Test that moon phase changes over time."""
+        # Test progression over several days
+        base_date = (2025, 9, 5, 12, 0, 0)
+        results = []
+        
+        for day_offset in range(5):
+            year, month, day, hour, minute, second = base_date
+            day += day_offset
+            result = calculate_moon_phase(year, month, day, hour, minute, second)
+            results.append(result)
+        
+        # Age should increase over time
+        for i in range(1, len(results)):
+            assert results[i]["age_days"] >= results[i-1]["age_days"]
+        
+        # Fraction of cycle should generally increase (with wraparound)
+        for i in range(1, len(results)):
+            # Allow for wraparound at cycle end
+            frac_diff = results[i]["fraction_of_cycle"] - results[i-1]["fraction_of_cycle"]
+            assert frac_diff >= -0.1  # Allow small negative due to wraparound
