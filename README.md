@@ -15,7 +15,8 @@ A modular Firebase Functions application for calculating astrological positions,
 │   │   ├── api/                # API endpoints
 │   │   │   ├── horoscope.py    # calculate_horoscope function
 │   │   │   ├── aspects.py      # calculate_aspects function
-│   │   │   └── moon_phase.py   # moon_phase function
+│   │   │   ├── moon_phase.py   # moon_phase function
+│   │   │   └── transits.py     # planetary_transits function
 │   │   ├── core/               # Business logic
 │   │   │   ├── config.py       # Configuration constants
 │   │   │   ├── astro_calculations.py  # Pure astro logic
@@ -35,6 +36,7 @@ A modular Firebase Functions application for calculating astrological positions,
 - **House System**: Calculate Ascendant, Descendant, Midheaven, and Imum Coeli positions
 - **Aspect Analysis**: Calculate planetary aspects with configurable orb tolerance
 - **Moon Phase Detection**: Determine if the Moon is in ascending or descending phase
+- **Planetary Transits**: Calculate when planets pass over cardinal points during a month
 - **CORS Support**: Full CORS headers for web application integration
 - **Error Handling**: Comprehensive validation and error responses
 - **Modular Architecture**: Clean separation of concerns, easy to maintain and extend
@@ -143,7 +145,98 @@ Determine if the Moon is in ascending or descending phase.
 }
 ```
 
+### POST /planetary_transits
+
+Calculate when planets pass over cardinal points (Ascendant, Descendant, Midheaven, Imum Coeli) during a specified month.
+
+**Request Body:**
+```json
+{
+  "year": 2025,
+  "month": 10,
+  "latitude": 41.9028,
+  "longitude": 12.4964,
+  "timezone_offset_hours": 2.0,
+  "planet": "Moon",
+  "step_minutes": 15
+}
+```
+
+**Parameters:**
+- `year` (int, required): Year (1900-2100)
+- `month` (int, required): Month (1-12)
+- `latitude` (float, required): Location latitude (-90 to 90)
+- `longitude` (float, required): Location longitude (-180 to 180)
+- `timezone_offset_hours` (float, optional): Timezone offset from UTC (-12 to 14, defaults to 0)
+- `planet` (string, optional): Planet name - Sun, Moon, Mercury, Venus, Mars, Jupiter, Saturn, Uranus, Neptune, Pluto (defaults to "Moon")
+- `step_minutes` (int, optional): Time step for scanning in minutes (1-60, defaults to 15)
+
+**Response:**
+```json
+{
+  "success": true,
+  "transits": [
+    {
+      "planet": "Moon",
+      "angle": "Ascendant",
+      "datetime_local": "2025-10-01T00:25:00.000000",
+      "longitude": 198.68,
+      "sign": "Bilancia",
+      "degree_in_sign": 18.68,
+      "decan": 2
+    }
+  ],
+  "parameters": { /* request parameters */ },
+  "total_transits": 240
+}
+```
+
 > **📖 API Examples**: See the Bruno collection in `api_docs/` for complete request/response examples.
+
+## 🌟 Planetary Transits Feature
+
+The new **planetary transits** endpoint calculates when planets cross the cardinal points (Ascendant, Descendant, Midheaven, Imum Coeli) during a specified month. This is essential for:
+
+- **Timing Events**: Finding optimal moments for important activities
+- **Astrological Analysis**: Understanding planetary influences on daily life
+- **Chart Interpretation**: Identifying significant planetary movements
+
+### Key Features:
+- **Precise Timing**: Uses bisection method for ~30-second accuracy
+- **All Cardinal Points**: Tracks Ascendant, Descendant, Midheaven, and Imum Coeli
+- **Complete Data**: Returns sign, degree, decan, and exact timing
+- **Flexible Parameters**: Supports all planets and customizable time steps
+
+### Example Usage:
+
+**Moon transits for Rome (October 2025):**
+```bash
+curl -X POST https://your-project.cloudfunctions.net/planetary_transits \
+  -H "Content-Type: application/json" \
+  -d '{
+    "year": 2025,
+    "month": 10,
+    "latitude": 41.9028,
+    "longitude": 12.4964,
+    "timezone_offset_hours": 2.0,
+    "planet": "Moon"
+  }'
+```
+
+**Sun transits with custom step:**
+```bash
+curl -X POST https://your-project.cloudfunctions.net/planetary_transits \
+  -H "Content-Type: application/json" \
+  -d '{
+    "year": 2025,
+    "month": 10,
+    "latitude": 40.7128,
+    "longitude": -74.0060,
+    "timezone_offset_hours": -5.0,
+    "planet": "Sun",
+    "step_minutes": 30
+  }'
+```
 
 ## 🧪 Testing
 
@@ -160,9 +253,9 @@ pytest tests/ --cov=src --cov-report=html --cov-report=term
 ```
 
 ### Test Results
-- ✅ **4 tests passing** - All core astrological calculations tested
+- ✅ **9 tests passing** - All core astrological calculations tested
 - ✅ **96% coverage** on core business logic (`astro_calculations.py`)
-- ✅ **Tests cover**: Sign/decan calculation, position calculation, aspects, moon phases
+- ✅ **Tests cover**: Sign/decan calculation, position calculation, aspects, moon phases, planetary transits
 
 ## 🏛️ Architecture
 

@@ -10,12 +10,65 @@
         - Local.bru
     - get aspects.bru
     - get moon phase.bru
+    - get planetary transit.bru
     - get sign and decane.bru
 - firebase.json
+- **functions/**
+    - main.py
+    - **__pycache__/**
+        - main.cpython-312.pyc
+    - **.pytest_cache/**
+        - CACHEDIR.TAG
+        - .gitignore
+        - README.md
+        - **v/**
+            - **cache/**
+                - nodeids
+    - requirements-dev.txt
+    - requirements.txt
+    - **src/**
+        - **api/**
+            - aspects.py
+            - horoscope.py
+            - __init__.py
+            - moon_phase.py
+            - **__pycache__/**
+                - aspects.cpython-312.pyc
+                - horoscope.cpython-312.pyc
+                - __init__.cpython-312.pyc
+                - moon_phase.cpython-312.pyc
+                - transits.cpython-312.pyc
+            - transits.py
+        - **core/**
+            - astro_calculations.py
+            - config.py
+            - __init__.py
+            - **__pycache__/**
+                - astro_calculations.cpython-312.pyc
+                - config.cpython-312.pyc
+                - __init__.cpython-312.pyc
+                - validation.cpython-312.pyc
+            - validation.py
+        - __init__.py
+        - **__pycache__/**
+            - __init__.cpython-312.pyc
+        - **utils/**
+            - __init__.py
+            - **__pycache__/**
+                - __init__.cpython-312.pyc
+                - response_utils.cpython-312.pyc
+            - response_utils.py
+    - **tests/**
+        - __init__.py
+        - **__pycache__/**
+            - __init__.cpython-312.pyc
+            - test_astro_calculations.cpython-312-pytest-8.4.1.pyc
+        - test_astro_calculations.py
+- **.github/**
+    - SETUP.md
+    - **workflows/**
+        - deploy.yml
+        - test.yml
 - .gitignore
-- main.py
-- **__pycache__/**
-    - main.cpython-312.pyc
 - README.md
-- requirements.txt
 ```
