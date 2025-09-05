@@ -119,12 +119,12 @@ def moon_phase(req: https_fn.Request) -> https_fn.Response:
 def month_moon_phases(req: https_fn.Request) -> https_fn.Response:
     """
     Firebase HTTP function to calculate moon phases for every day of a given month.
+    Uses noon UTC for calculations to get the most representative phase for each day.
     
     Expected JSON payload:
     {
         "year": 2025,
-        "month": 9,
-        "time": [hour, minute, second] (optional, defaults to [0, 0, 0])
+        "month": 9
     }
     """
     # Handle CORS preflight
@@ -173,26 +173,8 @@ def month_moon_phases(req: https_fn.Request) -> https_fn.Response:
         if year < 1900 or year > 2100:
             return create_error_response('Year must be between 1900 and 2100', 400)
         
-        # Validate time (optional)
-        time = data.get('time', [0, 0, 0])
-        if not isinstance(time, list) or len(time) != 3:
-            return create_error_response('Time must be an array [hour, minute, second]', 400)
-        
-        hour, minute, second = time
-        if not all(isinstance(x, int) for x in [hour, minute, second]):
-            return create_error_response('Time values must be integers', 400)
-        
-        if not (0 <= hour <= 23):
-            return create_error_response('Hour must be between 0 and 23', 400)
-        
-        if not (0 <= minute <= 59):
-            return create_error_response('Minute must be between 0 and 59', 400)
-        
-        if not (0 <= second <= 59):
-            return create_error_response('Second must be between 0 and 59', 400)
-        
-        # Calculate month moon phases
-        moon_phases_data = calculate_month_moon_phases(year, month, hour, minute, second)
+        # Calculate month moon phases (uses noon UTC for representative daily phase)
+        moon_phases_data = calculate_month_moon_phases(year, month)
         
         # Format response
         response_data = {
@@ -200,12 +182,7 @@ def month_moon_phases(req: https_fn.Request) -> https_fn.Response:
             'month_moon_phases': moon_phases_data,
             'request_data': {
                 'year': year,
-                'month': month,
-                'time': {
-                    'hour': hour,
-                    'minute': minute,
-                    'second': second
-                }
+                'month': month
             }
         }
         

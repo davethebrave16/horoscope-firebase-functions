@@ -346,20 +346,19 @@ class TestAstroCalculations:
         # Check first entry structure
         first_entry = result[0]
         assert isinstance(first_entry, dict)
-        assert "date_utc" in first_entry
+        assert "date" in first_entry
         assert "age_days" in first_entry
         assert "illuminated_fraction" in first_entry
         assert "phase_name" in first_entry
         
         # Check data types
-        assert isinstance(first_entry["date_utc"], str)
+        assert isinstance(first_entry["date"], str)
         assert isinstance(first_entry["age_days"], float)
         assert isinstance(first_entry["illuminated_fraction"], float)
         assert isinstance(first_entry["phase_name"], str)
         
         # Check date format
-        assert first_entry["date_utc"].startswith("2025-09-01")
-        assert " UTC" in first_entry["date_utc"]
+        assert first_entry["date"] == "2025-09-01"
 
     def test_month_moon_phases_different_months(self):
         """Test month_moon_phases with different month lengths."""
@@ -375,20 +374,16 @@ class TestAstroCalculations:
         jan_result = calculate_month_moon_phases(2025, 1)
         assert len(jan_result) == 31
 
-    def test_month_moon_phases_with_time(self):
-        """Test month_moon_phases with custom time."""
-        # Test with noon UTC
-        result = calculate_month_moon_phases(2025, 9, 12, 30, 45)
+    def test_month_moon_phases_date_format(self):
+        """Test month_moon_phases date format."""
+        result = calculate_month_moon_phases(2025, 9)
         
-        # Check that all entries have the correct time
+        # Check that all entries have the correct date format (no time)
         for entry in result:
-            assert "12:30:45 UTC" in entry["date_utc"]
-        
-        # Test with midnight UTC
-        result_midnight = calculate_month_moon_phases(2025, 9, 0, 0, 0)
-        
-        for entry in result_midnight:
-            assert "00:00:00 UTC" in entry["date_utc"]
+            assert "date" in entry
+            assert "date_utc" not in entry  # Should not have time info
+            assert entry["date"].startswith("2025-09-")
+            assert len(entry["date"]) == 10  # YYYY-MM-DD format
 
     def test_month_moon_phases_phase_progression(self):
         """Test that moon phases progress logically through the month."""
@@ -430,8 +425,8 @@ class TestAstroCalculations:
 
     def test_month_moon_phases_consistency_with_single_phase(self):
         """Test that month_moon_phases is consistent with calculate_moon_phase."""
-        # Test first day of month
-        month_result = calculate_month_moon_phases(2025, 9, 12, 0, 0)
+        # Test first day of month (month_moon_phases uses noon UTC)
+        month_result = calculate_month_moon_phases(2025, 9)
         single_result = calculate_moon_phase(2025, 9, 1, 12, 0, 0)
         
         # Phase names should match
@@ -451,12 +446,15 @@ class TestAstroCalculations:
         dec_result = calculate_month_moon_phases(2025, 12)
         assert len(dec_result) == 31
         
-        # Test with maximum time values
-        result = calculate_month_moon_phases(2025, 6, 23, 59, 59)
-        for entry in result:
-            assert "23:59:59 UTC" in entry["date_utc"]
+        # Test February leap year (29 days)
+        feb_leap = calculate_month_moon_phases(2024, 2)
+        assert len(feb_leap) == 29
         
-        # Test with minimum time values
-        result = calculate_month_moon_phases(2025, 6, 0, 0, 0)
-        for entry in result:
-            assert "00:00:00 UTC" in entry["date_utc"]
+        # Test February non-leap year (28 days)
+        feb_normal = calculate_month_moon_phases(2025, 2)
+        assert len(feb_normal) == 28
+        
+        # All entries should have proper date format
+        for entry in dec_result:
+            assert "date" in entry
+            assert len(entry["date"]) == 10  # YYYY-MM-DD format

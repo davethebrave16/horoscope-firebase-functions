@@ -442,16 +442,14 @@ def phase_info_from_jd(JD: float) -> Dict[str, any]:
     }
 
 
-def calculate_month_moon_phases(year: int, month: int, hour_utc: int = 0, minute_utc: int = 0, second_utc: int = 0) -> List[Dict[str, any]]:
+def calculate_month_moon_phases(year: int, month: int) -> List[Dict[str, any]]:
     """
-    Return a list of phase info for each day of the given month/year at specified UTC time.
+    Return a list of phase info for each day of the given month/year.
+    Uses noon UTC for calculations to get the most representative phase for each day.
     
     Args:
         year: Year
         month: Month (1-12)
-        hour_utc: Hour in UTC (0-23)
-        minute_utc: Minute in UTC (0-59)
-        second_utc: Second in UTC (0-59)
         
     Returns:
         List of dictionaries containing moon phase information for each day
@@ -459,12 +457,13 @@ def calculate_month_moon_phases(year: int, month: int, hour_utc: int = 0, minute
     ndays = calendar.monthrange(year, month)[1]
     results = []
     for day in range(1, ndays + 1):
-        JD = to_julian_date(year, month, day, hour_utc, minute_utc, second_utc)
+        # Use noon UTC (12:00:00) for more representative daily phase calculation
+        JD = to_julian_date(year, month, day, 12, 0, 0)
         info = phase_info_from_jd(JD)
         results.append({
-            "date_utc": f"{year:04d}-{month:02d}-{day:02d} {hour_utc:02d}:{minute_utc:02d}:{second_utc:02d} UTC",
-            "age_days": round(info["age_days"], 4),
-            "illuminated_fraction": round(info["illuminated_fraction"], 4),
+            "date": f"{year:04d}-{month:02d}-{day:02d}",
+            "age_days": round(info["age_days"], 2),
+            "illuminated_fraction": round(info["illuminated_fraction"], 3),
             "phase_name": info["phase_name"]
         })
     return results
