@@ -13,7 +13,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 # Import all function endpoints to register them
 from src.api.horoscope import calculate_horoscope
 from src.api.aspects import calculate_aspects
-from src.api.moon_phase import moon_phase
+from src.api.moon_phase import moon_phase, month_moon_phases
 from src.api.transits import planetary_transits
 
 # Initialize Firebase Admin SDK
@@ -23,4 +23,5 @@ initialize_app()
 # - calculate_horoscope
 # - calculate_aspects  
 # - moon_phase
+# - month_moon_phases
 # - planetary_transits

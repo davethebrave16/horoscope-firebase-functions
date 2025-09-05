@@ -1,0 +1,22 @@
+meta {
+  name: get month moon phases
+  type: http
+  seq: 6
+}
+
+post {
+  url: {{host}}/month_moon_phases
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{api_key}}
+}
+
+body:json {
+  {
+      "year": 2025,
+      "month": 9
+    }
+}

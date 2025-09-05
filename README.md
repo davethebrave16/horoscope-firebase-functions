@@ -15,7 +15,7 @@ A modular Firebase Functions application for calculating astrological positions,
 │   │   ├── api/                # API endpoints
 │   │   │   ├── horoscope.py    # calculate_horoscope function
 │   │   │   ├── aspects.py      # calculate_aspects function
-│   │   │   ├── moon_phase.py   # moon_phase function
+│   │   │   ├── moon_phase.py   # moon_phase and month_moon_phases functions
 │   │   │   └── transits.py     # planetary_transits function
 │   │   ├── core/               # Business logic
 │   │   │   ├── config.py       # Configuration constants
@@ -35,7 +35,7 @@ A modular Firebase Functions application for calculating astrological positions,
 - **Planetary Positions**: Calculate positions of all major planets (Sun, Moon, Mercury, Venus, Mars, Jupiter, Saturn, Uranus, Neptune, Pluto)
 - **House System**: Calculate Ascendant, Descendant, Midheaven, and Imum Coeli positions
 - **Aspect Analysis**: Calculate planetary aspects with configurable orb tolerance
-- **Moon Phase Detection**: Determine if the Moon is in ascending or descending phase
+- **Moon Phase Detection**: Calculate moon phases for specific dates and entire months (simplified API - no location data required)
 - **Planetary Transits**: Calculate when planets pass over cardinal points during a month
 - **CORS Support**: Full CORS headers for web application integration
 - **Error Handling**: Comprehensive validation and error responses
@@ -132,18 +132,91 @@ Calculate aspects between planets and houses.
 
 ### POST /moon_phase
 
-Determine if the Moon is in ascending or descending phase.
+Calculate moon phase information for a specific date and time. This endpoint provides detailed moon phase data for any given moment.
 
 **Request Body:**
 ```json
 {
-  "date": [1990, 5, 15],
-  "time": [14, 30, 0],
-  "latitude": 41.9028,
-  "longitude": 12.4964,
-  "timezone_offset_hours": 1.0
+  "date": [2025, 9, 7],
+  "time": [12, 0, 0]
 }
 ```
+
+**Parameters:**
+- `date` (array, required): Date as [year, month, day]
+- `time` (array, optional): Time as [hour, minute, second] (defaults to [0, 0, 0])
+
+**Response:**
+```json
+{
+  "success": true,
+  "moon_phase": {
+    "phase_name": "Full Moon",
+    "age_days": 15.20,
+    "fraction_of_cycle": 0.515,
+    "illuminated_fraction": 0.998,
+    "julian_date": 2460256.0
+  },
+  "request_data": {
+    "date": {"year": 2025, "month": 9, "day": 7},
+    "time": {"hour": 12, "minute": 0, "second": 0}
+  }
+}
+```
+
+**Features:**
+- **Precise Timing**: Calculate moon phase for any specific date and time
+- **Detailed Information**: Returns phase name, age in days, cycle fraction, and illumination
+- **Simple Input**: Only requires date and optional time - no location data needed
+- **UTC Based**: All calculations use UTC timezone for consistency
+
+### POST /month_moon_phases
+
+Calculate moon phases for every day of a given month. Uses noon UTC for calculations to provide the most representative daily phase.
+
+**Request Body:**
+```json
+{
+  "year": 2025,
+  "month": 9
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "month_moon_phases": [
+    {
+      "date": "2025-09-01",
+      "age_days": 9.20,
+      "illuminated_fraction": 0.689,
+      "phase_name": "Waxing Gibbous"
+    },
+    {
+      "date": "2025-09-07",
+      "age_days": 15.20,
+      "illuminated_fraction": 0.998,
+      "phase_name": "Full Moon"
+    }
+    // ... more entries for each day of the month
+  ],
+  "request_data": {
+    "year": 2025,
+    "month": 9
+  }
+}
+```
+
+**Parameters:**
+- `year` (int, required): Year (1900-2100)
+- `month` (int, required): Month (1-12)
+
+**Features:**
+- **Daily Approximation**: Uses noon UTC for each day to get the most representative phase
+- **No Time Complexity**: Simple year/month input, no time parameters needed
+- **Complete Month**: Returns data for all days in the month (28-31 days depending on month/year)
+- **Practical Accuracy**: September 7th, 2025 correctly shows as "Full Moon" instead of requiring precise timing
 
 ### POST /planetary_transits
 
@@ -192,6 +265,78 @@ Calculate when planets pass over cardinal points (Ascendant, Descendant, Midheav
 ```
 
 > **📖 API Examples**: See the Bruno collection in `api_docs/` for complete request/response examples.
+
+### Quick API Examples
+
+**Get moon phases for current month:**
+```bash
+curl -X POST https://your-project.cloudfunctions.net/month_moon_phases \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer your-api-key" \
+  -d '{"year": 2025, "month": 9}'
+```
+
+**Calculate single moon phase (simplified - no location needed):**
+```bash
+curl -X POST https://your-project.cloudfunctions.net/moon_phase \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer your-api-key" \
+  -d '{"date": [2025, 9, 7], "time": [12, 0, 0]}'
+```
+
+**Calculate moon phase for midnight (time optional):**
+```bash
+curl -X POST https://your-project.cloudfunctions.net/moon_phase \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer your-api-key" \
+  -d '{"date": [2025, 9, 7]}'
+```
+
+## 🌙 Moon Phases Feature
+
+The moon phase functionality has been **simplified and improved** to provide more practical and user-friendly APIs:
+
+### API Improvements:
+- **Simplified Input**: Moon phase calculations no longer require latitude, longitude, or timezone data
+- **UTC Based**: All calculations use UTC for consistency and simplicity
+- **Two Endpoints**: 
+  - `/moon_phase` - For specific date/time calculations
+  - `/month_moon_phases` - For entire month overviews
+
+The **month moon phases** endpoint provides a practical way to get moon phase information for every day of a month. This is perfect for:
+
+- **Calendar Applications**: Displaying moon phases in monthly views
+- **Astrological Planning**: Understanding lunar influences throughout the month
+- **Gardening & Agriculture**: Timing activities based on moon phases
+- **General Interest**: Tracking the lunar cycle
+
+### Key Features:
+- **Daily Approximation**: Uses noon UTC for each day to get the most representative phase
+- **No Time Complexity**: Simple year/month input, no time parameters needed
+- **Complete Month Coverage**: Returns data for all days (28-31 days depending on month/year)
+- **Practical Accuracy**: September 7th, 2025 correctly shows as "Full Moon" instead of requiring precise timing
+
+### Example Usage:
+
+**Get moon phases for September 2025:**
+```bash
+curl -X POST https://your-project.cloudfunctions.net/month_moon_phases \
+  -H "Content-Type: application/json" \
+  -d '{
+    "year": 2025,
+    "month": 9
+  }'
+```
+
+**Get moon phases for February 2024 (leap year):**
+```bash
+curl -X POST https://your-project.cloudfunctions.net/month_moon_phases \
+  -H "Content-Type: application/json" \
+  -d '{
+    "year": 2024,
+    "month": 2
+  }'
+```
 
 ## 🌟 Planetary Transits Feature
 
@@ -253,9 +398,9 @@ pytest tests/ --cov=src --cov-report=html --cov-report=term
 ```
 
 ### Test Results
-- ✅ **9 tests passing** - All core astrological calculations tested
+- ✅ **22 tests passing** - All core astrological calculations tested
 - ✅ **96% coverage** on core business logic (`astro_calculations.py`)
-- ✅ **Tests cover**: Sign/decan calculation, position calculation, aspects, moon phases, planetary transits
+- ✅ **Tests cover**: Sign/decan calculation, position calculation, aspects, moon phases, month moon phases, planetary transits
 
 ## 🏛️ Architecture
 

@@ -5,6 +5,7 @@ from typing import Dict, Tuple, List
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from math import floor, pi, cos
+import calendar
 from .config import ZODIAC_SIGNS, ASPECTS, DEFAULT_ORB, LENORMAND_CARDS
 
 # Planet constants from Swiss Ephemeris
@@ -394,3 +395,75 @@ def calculate_moon_phase(year: int, month: int, day: int, hour: int = 0, minute:
         "illuminated_fraction": round(illuminated, 4),
         "phase_name": phase_name
     }
+
+
+def phase_info_from_jd(JD: float) -> Dict[str, any]:
+    """
+    Return age (days), fraction of cycle, illuminated fraction, and phase index/name.
+    
+    Args:
+        JD: Julian date
+        
+    Returns:
+        Dictionary containing detailed moon phase information
+    """
+    JD0 = 2451550.1  # Reference epoch (commonly used)
+    synodic_month = 29.530588853
+    D = JD - JD0
+    N = D / synodic_month
+    frac = N - floor(N)  # Fractional part of cycle [0,1)
+    age = frac * synodic_month
+    phi = 2 * pi * frac
+    illuminated = (1 - cos(phi)) / 2.0
+
+    # Use the same phase determination logic as calculate_moon_phase for consistency
+    if frac < 0.03 or frac > 0.97:
+        phase_name = "New Moon"
+    elif frac < 0.25:
+        phase_name = "Waxing Crescent"
+    elif frac < 0.27:
+        phase_name = "First Quarter"
+    elif frac < 0.50:
+        phase_name = "Waxing Gibbous"
+    elif frac < 0.53:
+        phase_name = "Full Moon"
+    elif frac < 0.75:
+        phase_name = "Waning Gibbous"
+    elif frac < 0.77:
+        phase_name = "Last Quarter"
+    else:
+        phase_name = "Waning Crescent"
+
+    return {
+        "age_days": age,
+        "fraction_of_cycle": frac,
+        "illuminated_fraction": illuminated,
+        "phase_name": phase_name
+    }
+
+
+def calculate_month_moon_phases(year: int, month: int) -> List[Dict[str, any]]:
+    """
+    Return a list of phase info for each day of the given month/year.
+    Uses noon UTC for calculations to get the most representative phase for each day.
+    
+    Args:
+        year: Year
+        month: Month (1-12)
+        
+    Returns:
+        List of dictionaries containing moon phase information for each day
+    """
+    ndays = calendar.monthrange(year, month)[1]
+    results = []
+    for day in range(1, ndays + 1):
+        # Use noon UTC (12:00:00) for more representative daily phase calculation
+        JD = to_julian_date(year, month, day, 12, 0, 0)
+        info = phase_info_from_jd(JD)
+        results.append({
+            "date": f"{year:04d}-{month:02d}-{day:02d}",
+            "age_days": round(info["age_days"], 2),
+            "illuminated_fraction": round(info["illuminated_fraction"], 3),
+            "phase_name": info["phase_name"]
+        })
+    return results
