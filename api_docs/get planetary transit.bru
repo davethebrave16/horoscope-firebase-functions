@@ -1,0 +1,27 @@
+meta {
+  name: get planetary transit
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{host}}/planetary_transits
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{api_key}}
+}
+
+body:json {
+  {
+      "year": 2025,
+      "month": 10,
+      "latitude": 35.6762,
+      "longitude": 139.6503,
+      "timezone_offset_hours": 9.0,
+      "planet": "Mars",
+      "step_minutes": 60
+    }
+}
