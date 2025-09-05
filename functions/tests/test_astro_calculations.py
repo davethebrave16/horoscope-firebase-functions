@@ -7,6 +7,7 @@ from src.core.astro_calculations import (
     calculate_planetary_aspects,
     moon_ascending_descending,
     calculate_planetary_transits,
+    calculate_lenormand_card,
     Transit
 )
 
@@ -18,13 +19,13 @@ class TestAstroCalculations:
         """Test zodiac sign and decan calculation."""
         # Test Aries (0-30 degrees)
         sign, decan, degree = get_sign_and_decan(15.5)
-        assert sign == "Ariete"
+        assert sign == "Aries"
         assert decan == 2
         assert degree == 15.5
 
         # Test Taurus (30-60 degrees)
         sign, decan, degree = get_sign_and_decan(45.0)
-        assert sign == "Toro"
+        assert sign == "Taurus"
         assert decan == 2
         assert degree == 15.0
 
@@ -48,9 +49,9 @@ class TestAstroCalculations:
         """Test aspect calculation."""
         # Create mock positions for testing
         positions = {
-            "Sun": ("Ariete", 1, 10.0, 10.0),
-            "Moon": ("Ariete", 1, 15.0, 15.0),
-            "Mars": ("Ariete", 1, 20.0, 20.0)
+            "Sun": ("Aries", 1, 10.0, 10.0),
+            "Moon": ("Aries", 1, 15.0, 15.0),
+            "Mars": ("Aries", 1, 20.0, 20.0)
         }
         
         aspects = calculate_planetary_aspects(positions, orb=10.0)
@@ -67,9 +68,9 @@ class TestAstroCalculations:
         """Test moon phase determination."""
         # Create mock positions
         positions = {
-            "Moon": ("Ariete", 1, 10.0, 10.0),
-            "Ascendant": ("Ariete", 1, 5.0, 5.0),
-            "Descendant": ("Bilancia", 1, 5.0, 185.0)
+            "Moon": ("Aries", 1, 10.0, 10.0),
+            "Ascendant": ("Aries", 1, 5.0, 5.0),
+            "Descendant": ("Libra", 1, 5.0, 185.0)
         }
         
         result = moon_ascending_descending(positions)
@@ -195,3 +196,23 @@ class TestAstroCalculations:
             assert 0 <= transit.degree_in_sign < 30
             assert transit.decan in [1, 2, 3]
             assert transit.angle in ["Ascendant", "Descendant", "Midheaven", "Imum Coeli"]
+
+    def test_calculate_lenormand_card(self):
+        """Test Lenormand card calculation based on Moon's sign and decan."""
+        # Test valid combinations
+        assert calculate_lenormand_card("Aries", 1) == "Rider"
+        assert calculate_lenormand_card("Aries", 2) == "Clover"
+        assert calculate_lenormand_card("Aries", 3) == "Ship"
+        
+        assert calculate_lenormand_card("Taurus", 1) == "House"
+        assert calculate_lenormand_card("Taurus", 2) == "Tree"
+        assert calculate_lenormand_card("Taurus", 3) == "Clouds"
+        
+        assert calculate_lenormand_card("Pisces", 1) == "Fish"
+        assert calculate_lenormand_card("Pisces", 2) == "Anchor"
+        assert calculate_lenormand_card("Pisces", 3) == "Cross"
+        
+        # Test invalid combinations
+        assert calculate_lenormand_card("InvalidSign", 1) == "Unknown"
+        assert calculate_lenormand_card("Aries", 4) == "Unknown"
+        assert calculate_lenormand_card("Aries", 0) == "Unknown"

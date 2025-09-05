@@ -4,7 +4,7 @@ import swisseph as swe
 from typing import Dict, Tuple, List
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from .config import ZODIAC_SIGNS, ASPECTS, DEFAULT_ORB
+from .config import ZODIAC_SIGNS, ASPECTS, DEFAULT_ORB, LENORMAND_CARDS
 
 # Planet constants from Swiss Ephemeris
 PLANETS = {
@@ -319,3 +319,23 @@ def calculate_planetary_transits(
 
     results.sort(key=lambda x: x.datetime_local)
     return results
+
+
+def calculate_lenormand_card(moon_sign: str, moon_decan: int) -> str:
+    """
+    Calculate the Lenormand card based on Moon's sign and decan.
+    
+    Args:
+        moon_sign: Moon's zodiac sign
+        moon_decan: Moon's decan (1, 2, or 3)
+        
+    Returns:
+        Lenormand card name
+    """
+    if moon_sign not in LENORMAND_CARDS:
+        return "Unknown"
+    
+    if moon_decan not in LENORMAND_CARDS[moon_sign]:
+        return "Unknown"
+    
+    return LENORMAND_CARDS[moon_sign][moon_decan]
