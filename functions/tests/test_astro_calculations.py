@@ -9,6 +9,8 @@ from src.core.astro_calculations import (
     calculate_lenormand_card,
     to_julian_date,
     calculate_moon_phase,
+    phase_info_from_jd,
+    calculate_month_moon_phases,
     Transit
 )
 
@@ -299,3 +301,162 @@ class TestAstroCalculations:
             # Allow for wraparound at cycle end
             frac_diff = results[i]["fraction_of_cycle"] - results[i-1]["fraction_of_cycle"]
             assert frac_diff >= -0.1  # Allow small negative due to wraparound
+
+    def test_phase_info_from_jd(self):
+        """Test phase_info_from_jd function."""
+        # Test with a known Julian date
+        JD = to_julian_date(2025, 9, 5, 12, 0, 0)
+        result = phase_info_from_jd(JD)
+        
+        # Check structure
+        assert isinstance(result, dict)
+        assert "age_days" in result
+        assert "fraction_of_cycle" in result
+        assert "illuminated_fraction" in result
+        assert "phase_name" in result
+        
+        # Check data types
+        assert isinstance(result["age_days"], float)
+        assert isinstance(result["fraction_of_cycle"], float)
+        assert isinstance(result["illuminated_fraction"], float)
+        assert isinstance(result["phase_name"], str)
+        
+        # Check value ranges
+        assert 0 <= result["age_days"] <= 29.6
+        assert 0 <= result["fraction_of_cycle"] <= 1
+        assert 0 <= result["illuminated_fraction"] <= 1
+        
+        # Check phase name is valid
+        valid_phases = [
+            "New Moon", "Waxing Crescent", "First Quarter", 
+            "Waxing Gibbous", "Full Moon", "Waning Gibbous", 
+            "Last Quarter", "Waning Crescent"
+        ]
+        assert result["phase_name"] in valid_phases
+
+    def test_month_moon_phases_basic(self):
+        """Test basic calculate_month_moon_phases function."""
+        # Test with September 2025 (30 days)
+        result = calculate_month_moon_phases(2025, 9)
+        
+        # Check structure
+        assert isinstance(result, list)
+        assert len(result) == 30  # September has 30 days
+        
+        # Check first entry structure
+        first_entry = result[0]
+        assert isinstance(first_entry, dict)
+        assert "date_utc" in first_entry
+        assert "age_days" in first_entry
+        assert "illuminated_fraction" in first_entry
+        assert "phase_name" in first_entry
+        
+        # Check data types
+        assert isinstance(first_entry["date_utc"], str)
+        assert isinstance(first_entry["age_days"], float)
+        assert isinstance(first_entry["illuminated_fraction"], float)
+        assert isinstance(first_entry["phase_name"], str)
+        
+        # Check date format
+        assert first_entry["date_utc"].startswith("2025-09-01")
+        assert " UTC" in first_entry["date_utc"]
+
+    def test_month_moon_phases_different_months(self):
+        """Test month_moon_phases with different month lengths."""
+        # Test February 2024 (leap year, 29 days)
+        feb_result = calculate_month_moon_phases(2024, 2)
+        assert len(feb_result) == 29
+        
+        # Test February 2025 (non-leap year, 28 days)
+        feb_2025_result = calculate_month_moon_phases(2025, 2)
+        assert len(feb_2025_result) == 28
+        
+        # Test January 2025 (31 days)
+        jan_result = calculate_month_moon_phases(2025, 1)
+        assert len(jan_result) == 31
+
+    def test_month_moon_phases_with_time(self):
+        """Test month_moon_phases with custom time."""
+        # Test with noon UTC
+        result = calculate_month_moon_phases(2025, 9, 12, 30, 45)
+        
+        # Check that all entries have the correct time
+        for entry in result:
+            assert "12:30:45 UTC" in entry["date_utc"]
+        
+        # Test with midnight UTC
+        result_midnight = calculate_month_moon_phases(2025, 9, 0, 0, 0)
+        
+        for entry in result_midnight:
+            assert "00:00:00 UTC" in entry["date_utc"]
+
+    def test_month_moon_phases_phase_progression(self):
+        """Test that moon phases progress logically through the month."""
+        result = calculate_month_moon_phases(2025, 9)
+        
+        # Age should generally increase (with possible wraparound)
+        ages = [entry["age_days"] for entry in result]
+        wraparound_detected = False
+        for i in range(1, len(ages)):
+            age_diff = ages[i] - ages[i-1]
+            # Allow for wraparound at cycle end (moon cycle is ~29.5 days)
+            if age_diff < -10:  # Large negative indicates wraparound
+                wraparound_detected = True
+                assert age_diff >= -29.6  # Should be around -29.5 for full cycle
+            else:
+                assert age_diff >= -0.1  # Small negative due to rounding
+        
+        # Should have at least one wraparound in a 30-day month
+        assert wraparound_detected
+        
+        # All phase names should be valid
+        valid_phases = [
+            "New Moon", "Waxing Crescent", "First Quarter", 
+            "Waxing Gibbous", "Full Moon", "Waning Gibbous", 
+            "Last Quarter", "Waning Crescent"
+        ]
+        
+        for entry in result:
+            assert entry["phase_name"] in valid_phases
+
+    def test_month_moon_phases_illuminated_fraction(self):
+        """Test that illuminated fraction values are valid."""
+        result = calculate_month_moon_phases(2025, 9)
+        
+        for entry in result:
+            illuminated = entry["illuminated_fraction"]
+            assert 0 <= illuminated <= 1
+            assert isinstance(illuminated, float)
+
+    def test_month_moon_phases_consistency_with_single_phase(self):
+        """Test that month_moon_phases is consistent with calculate_moon_phase."""
+        # Test first day of month
+        month_result = calculate_month_moon_phases(2025, 9, 12, 0, 0)
+        single_result = calculate_moon_phase(2025, 9, 1, 12, 0, 0)
+        
+        # Phase names should match
+        assert month_result[0]["phase_name"] == single_result["phase_name"]
+        
+        # Age should be very close (allowing for rounding differences)
+        age_diff = abs(month_result[0]["age_days"] - single_result["age_days"])
+        assert age_diff < 0.01
+        
+        # Illuminated fraction should be very close
+        illum_diff = abs(month_result[0]["illuminated_fraction"] - single_result["illuminated_fraction"])
+        assert illum_diff < 0.01
+
+    def test_month_moon_phases_edge_cases(self):
+        """Test month_moon_phases with edge cases."""
+        # Test December (31 days)
+        dec_result = calculate_month_moon_phases(2025, 12)
+        assert len(dec_result) == 31
+        
+        # Test with maximum time values
+        result = calculate_month_moon_phases(2025, 6, 23, 59, 59)
+        for entry in result:
+            assert "23:59:59 UTC" in entry["date_utc"]
+        
+        # Test with minimum time values
+        result = calculate_month_moon_phases(2025, 6, 0, 0, 0)
+        for entry in result:
+            assert "00:00:00 UTC" in entry["date_utc"]

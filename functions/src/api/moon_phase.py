@@ -1,7 +1,7 @@
 """Moon phase calculation API endpoint."""
 
 from firebase_functions import https_fn
-from ..core.astro_calculations import calculate_moon_phase
+from ..core.astro_calculations import calculate_moon_phase, calculate_month_moon_phases
 from ..core.validation import (
     handle_cors_preflight,
     validate_authorization,
@@ -101,6 +101,106 @@ def moon_phase(req: https_fn.Request) -> https_fn.Response:
                     'month': month,
                     'day': day
                 },
+                'time': {
+                    'hour': hour,
+                    'minute': minute,
+                    'second': second
+                }
+            }
+        }
+        
+        return create_success_response(response_data)
+        
+    except Exception as e:
+        return create_error_response(f'Internal server error: {str(e)}')
+
+
+@https_fn.on_request(region=FIREBASE_REGION)
+def month_moon_phases(req: https_fn.Request) -> https_fn.Response:
+    """
+    Firebase HTTP function to calculate moon phases for every day of a given month.
+    
+    Expected JSON payload:
+    {
+        "year": 2025,
+        "month": 9,
+        "time": [hour, minute, second] (optional, defaults to [0, 0, 0])
+    }
+    """
+    # Handle CORS preflight
+    cors_response = handle_cors_preflight(req)
+    if cors_response:
+        return cors_response
+    
+    # Validate authorization
+    auth_response = validate_authorization(req)
+    if auth_response:
+        return auth_response
+    
+    # Validate request method
+    method_response = validate_request_method(req)
+    if method_response:
+        return method_response
+    
+    try:
+        # Parse JSON request
+        if not req.is_json:
+            return create_error_response('Request must be JSON', 400)
+        
+        data = req.get_json()
+        if not data:
+            return create_error_response('Invalid JSON data', 400)
+        
+        # Validate required fields
+        if 'year' not in data:
+            return create_error_response('Missing required field: year', 400)
+        
+        if 'month' not in data:
+            return create_error_response('Missing required field: month', 400)
+        
+        year = data['year']
+        month = data['month']
+        
+        if not isinstance(year, int):
+            return create_error_response('Year must be an integer', 400)
+        
+        if not isinstance(month, int):
+            return create_error_response('Month must be an integer', 400)
+        
+        if not (1 <= month <= 12):
+            return create_error_response('Month must be between 1 and 12', 400)
+        
+        if year < 1900 or year > 2100:
+            return create_error_response('Year must be between 1900 and 2100', 400)
+        
+        # Validate time (optional)
+        time = data.get('time', [0, 0, 0])
+        if not isinstance(time, list) or len(time) != 3:
+            return create_error_response('Time must be an array [hour, minute, second]', 400)
+        
+        hour, minute, second = time
+        if not all(isinstance(x, int) for x in [hour, minute, second]):
+            return create_error_response('Time values must be integers', 400)
+        
+        if not (0 <= hour <= 23):
+            return create_error_response('Hour must be between 0 and 23', 400)
+        
+        if not (0 <= minute <= 59):
+            return create_error_response('Minute must be between 0 and 59', 400)
+        
+        if not (0 <= second <= 59):
+            return create_error_response('Second must be between 0 and 59', 400)
+        
+        # Calculate month moon phases
+        moon_phases_data = calculate_month_moon_phases(year, month, hour, minute, second)
+        
+        # Format response
+        response_data = {
+            'success': True,
+            'month_moon_phases': moon_phases_data,
+            'request_data': {
+                'year': year,
+                'month': month,
                 'time': {
                     'hour': hour,
                     'minute': minute,
